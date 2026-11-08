@@ -13,23 +13,64 @@
         <input id="yt-link" type="text" placeholder="لینکەکەی یوتوب لێرە دابنێ..." 
                class="w-full p-3 border-2 border-gray-200 rounded-xl mb-4 text-left focus:border-red-500 focus:outline-none transition-colors" dir="ltr">
         
-        <button onclick="downloadAudio()" 
+        <button id="download-btn" onclick="downloadAudio()" 
                 class="w-full bg-red-600 text-white p-3 rounded-xl font-bold text-lg hover:bg-red-700 transition-colors shadow-md">
             ئامادەکردنی دەنگەکە
         </button>
+        
+        <p id="status" class="mt-4 text-gray-600 font-bold text-sm"></p>
     </div>
 
     <script>
-        function downloadAudio() {
+        async function downloadAudio() {
             let link = document.getElementById("yt-link").value.trim();
+            let statusText = document.getElementById("status");
+            let btn = document.getElementById("download-btn");
+
             if (!link) {
                 alert("تکایە سەرەتا لینکێک دابنێ!");
                 return;
             }
             
-            // لێرەدا گۆڕانکارییەکەمان کرد، ڕاستەوخۆ دەتباتە پەڕەی داگرتنەکە بۆ ئەوەی بلۆک نەکرێت
-            let downloadUrl = `https://loader.to/api/button/?url=${encodeURIComponent(link)}&f=mp3`;
-            window.location.href = downloadUrl;
+            // گۆڕینی شێوەی دوگمەکە لە کاتی کارکردندا
+            statusText.innerText = "کەمێک چاوەڕێ بکە، خەریکی هێنانی دەنگەکەیە...";
+            statusText.style.color = "blue";
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+
+            try {
+                // ناردنی داواکاری بۆ APIـیە پاکەکەی کۆباڵت
+                let response = await fetch("https://api.cobalt.tools/api/json", {
+                    method: "POST",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        url: link,
+                        isAudioOnly: true
+                    })
+                });
+
+                let data = await response.json();
+
+                // ئەگەر لینکەکە ئامادە بوو، ڕاستەوخۆ دەست دەکات بە داگرتن
+                if (data.url) {
+                    statusText.innerText = "سەرکەوتوو بوو! فایلەکە دادەبەزێت.";
+                    statusText.style.color = "green";
+                    window.location.href = data.url; 
+                } else {
+                    statusText.innerText = "هەڵەیەک ڕوویدا، تکایە دڵنیابەوە لە لینکەکە.";
+                    statusText.style.color = "red";
+                }
+            } catch (error) {
+                statusText.innerText = "کێشەیەک هەیە لە سێرڤەرەوە.";
+                statusText.style.color = "red";
+            }
+
+            // گەڕاندنەوەی دوگمەکە بۆ باری ئاسایی
+            btn.disabled = false;
+            btn.style.opacity = "1";
         }
     </script>
 </body>
