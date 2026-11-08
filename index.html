@@ -23,54 +23,68 @@
 
     <script>
         async function downloadAudio() {
-            let link = document.getElementById("yt-link").value.trim();
-            let statusText = document.getElementById("status");
-            let btn = document.getElementById("download-btn");
-
+            const link = document.getElementById("yt-link").value.trim();
+            const statusText = document.getElementById("status");
+            const btn = document.getElementById("download-btn");
+            
             if (!link) {
                 alert("تکایە سەرەتا لینکێک دابنێ!");
                 return;
             }
-            
-            // گۆڕینی شێوەی دوگمەکە لە کاتی کارکردندا
-            statusText.innerText = "کەمێک چاوەڕێ بکە، خەریکی هێنانی دەنگەکەیە...";
+
+            statusText.innerText = "١. خەریکی وەرگرتنی ڤیدیۆکەیە...";
             statusText.style.color = "blue";
             btn.disabled = true;
             btn.style.opacity = "0.5";
 
             try {
-                // ناردنی داواکاری بۆ APIـیە پاکەکەی کۆباڵت
-                let response = await fetch("https://api.cobalt.tools/api/json", {
-                    method: "POST",
-                    headers: {
-                        "Accept": "application/json",
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        url: link,
-                        isAudioOnly: true
-                    })
-                });
+                // هەوڵدان بۆ داگرتنی ڕاستەوخۆ بەبێ کلیل
+                const res = await fetch(`https://p.oceansaver.in/ajax/download.php?format=mp3&url=${encodeURIComponent(link)}`);
+                const data = await res.json();
 
-                let data = await response.json();
+                if (data && data.success && data.id) {
+                    const fileId = data.id;
+                    statusText.innerText = "٢. ڤیدیۆکە دەگۆڕێت بۆ دەنگ، کەمێک چاوەڕێ بکە...";
 
-                // ئەگەر لینکەکە ئامادە بوو، ڕاستەوخۆ دەست دەکات بە داگرتن
-                if (data.url) {
-                    statusText.innerText = "سەرکەوتوو بوو! فایلەکە دادەبەزێت.";
-                    statusText.style.color = "green";
-                    window.location.href = data.url; 
+                    // پشکنین بۆ ئەوەی بزانین کەی ئامادە دەبێت
+                    const checkInterval = setInterval(async () => {
+                        try {
+                            const progressRes = await fetch(`https://p.oceansaver.in/ajax/progress.php?id=${fileId}`);
+                            const progressData = await progressRes.json();
+
+                            if (progressData && progressData.success) {
+                                if (progressData.progress === 1000) {
+                                    clearInterval(checkInterval);
+                                    statusText.innerText = "٣. ئامادەیە! ئێستا دادەبەزێت...";
+                                    statusText.style.color = "green";
+                                    
+                                    // کاتێک ئامادە بوو، ڕاستەوخۆ فایلەکە دادەبەزێنێت
+                                    window.location.href = progressData.download_url;
+                                    
+                                    btn.disabled = false;
+                                    btn.style.opacity = "1";
+                                } else {
+                                    statusText.innerText = `٢. خەریکە دەگۆڕێت: ${Math.round(progressData.progress / 10)}%`;
+                                }
+                            }
+                        } catch (err) {
+                            clearInterval(checkInterval);
+                            throw new Error("کێشە لەکاتی گۆڕیندا ڕوویدا");
+                        }
+                    }, 3000);
                 } else {
-                    statusText.innerText = "هەڵەیەک ڕوویدا، تکایە دڵنیابەوە لە لینکەکە.";
-                    statusText.style.color = "red";
+                    throw new Error("سێرڤەر وەڵامی نەدایەوە");
                 }
             } catch (error) {
-                statusText.innerText = "کێشەیەک هەیە لە سێرڤەرەوە.";
-                statusText.style.color = "red";
+                // پلانی بی: ئەگەر سێرڤەرەکە کێشەی هەبوو، ناهێڵێت پڕۆگرامەکە بوەستێت
+                // ڕاستەوخۆ دەتباتە ماڵپەڕێکی سەد لە سەد پاک کە لینکەکەی تۆی تێدا ئامادەیە
+                statusText.innerText = "سێرڤەری سەرەکی خاوە، ڕاستەوخۆ دەتبەینە پەڕەی داگرتن...";
+                statusText.style.color = "orange";
+                
+                setTimeout(() => {
+                    window.location.href = `https://cobalt.tools/?u=${encodeURIComponent(link)}`;
+                }, 2000);
             }
-
-            // گەڕاندنەوەی دوگمەکە بۆ باری ئاسایی
-            btn.disabled = false;
-            btn.style.opacity = "1";
         }
     </script>
 </body>
