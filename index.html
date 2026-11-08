@@ -8,82 +8,63 @@
 </head>
 <body class="bg-gray-50 flex items-center justify-center h-screen">
     <div class="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm w-full mx-4">
-        <h1 class="text-2xl font-bold mb-6 text-red-600">گۆڕینی ڤیدیۆ بۆ دەنگ</h1>
+        <h1 class="text-2xl font-bold mb-2 text-red-600">گۆڕینی ڤیدیۆ بۆ دەنگ</h1>
+        <p class="text-gray-500 mb-6 text-sm">بەبێ کێشەی سێرڤەر کار دەکات بۆ ڤیدیۆ و کورتە (Shorts)</p>
         
-        <input id="yt-link" type="text" placeholder="لینکەکەی یوتوب لێرە دابنێ..." 
+        <input id="yt-link" type="text" placeholder="لینکەکەی یوتوب (یان Shorts) لێرە دابنێ..." 
                class="w-full p-3 border-2 border-gray-200 rounded-xl mb-4 text-left focus:border-red-500 focus:outline-none transition-colors" dir="ltr">
         
-        <button id="download-btn" onclick="downloadAudio()" 
-                class="w-full bg-red-600 text-white p-3 rounded-xl font-bold text-lg hover:bg-red-700 transition-colors shadow-md">
-            ئامادەکردنی دەنگەکە
+        <!-- دوگمەی یەکەم -->
+        <button onclick="downloadVia('yout')" 
+                class="w-full bg-red-600 text-white p-3 rounded-xl font-bold text-lg hover:bg-red-700 transition-colors shadow-md mb-3">
+            داگرتن (سێرڤەری یەکەم - خێرا)
+        </button>
+
+        <!-- دوگمەی دووەم -->
+        <button onclick="downloadVia('y2meta')" 
+                class="w-full bg-gray-800 text-white p-3 rounded-xl font-bold text-lg hover:bg-gray-900 transition-colors shadow-md">
+            داگرتن (سێرڤەری دووەم - یەدەگ)
         </button>
         
-        <p id="status" class="mt-4 text-gray-600 font-bold text-sm"></p>
+        <p id="status" class="mt-4 text-red-600 font-bold text-sm"></p>
     </div>
 
     <script>
-        async function downloadAudio() {
+        // دۆزینەوەی ئایدی ڤیدیۆکە لە هەموو جۆرە لینکێک (تەنانەت Shorts)
+        function extractVideoID(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        function downloadVia(server) {
             const link = document.getElementById("yt-link").value.trim();
             const statusText = document.getElementById("status");
-            const btn = document.getElementById("download-btn");
             
             if (!link) {
-                alert("تکایە سەرەتا لینکێک دابنێ!");
+                statusText.innerText = "تکایە سەرەتا لینکێک دابنێ!";
                 return;
             }
 
-            statusText.innerText = "١. خەریکی وەرگرتنی ڤیدیۆکەیە...";
-            statusText.style.color = "blue";
-            btn.disabled = true;
-            btn.style.opacity = "0.5";
+            const videoId = extractVideoID(link);
+            
+            if (!videoId) {
+                statusText.innerText = "لینکەکە هەڵەیە، تکایە لینکی دروستی یوتوب دابنێ.";
+                return;
+            }
 
-            try {
-                // هەوڵدان بۆ داگرتنی ڕاستەوخۆ بەبێ کلیل
-                const res = await fetch(`https://p.oceansaver.in/ajax/download.php?format=mp3&url=${encodeURIComponent(link)}`);
-                const data = await res.json();
+            statusText.innerText = "ئامادەیە! ڕاستەوخۆ دەتبەینە پەڕەی داگرتن...";
+            statusText.style.color = "green";
 
-                if (data && data.success && data.id) {
-                    const fileId = data.id;
-                    statusText.innerText = "٢. ڤیدیۆکە دەگۆڕێت بۆ دەنگ، کەمێک چاوەڕێ بکە...";
+            // گۆڕینی لینکەکە بۆ لینکی فەرمی یوتوب بۆ ئەوەی سێرڤەرەکان بلۆکی نەکەن
+            const cleanYoutubeLink = `https://www.youtube.com/watch?v=${videoId}`;
 
-                    // پشکنین بۆ ئەوەی بزانین کەی ئامادە دەبێت
-                    const checkInterval = setInterval(async () => {
-                        try {
-                            const progressRes = await fetch(`https://p.oceansaver.in/ajax/progress.php?id=${fileId}`);
-                            const progressData = await progressRes.json();
-
-                            if (progressData && progressData.success) {
-                                if (progressData.progress === 1000) {
-                                    clearInterval(checkInterval);
-                                    statusText.innerText = "٣. ئامادەیە! ئێستا دادەبەزێت...";
-                                    statusText.style.color = "green";
-                                    
-                                    // کاتێک ئامادە بوو، ڕاستەوخۆ فایلەکە دادەبەزێنێت
-                                    window.location.href = progressData.download_url;
-                                    
-                                    btn.disabled = false;
-                                    btn.style.opacity = "1";
-                                } else {
-                                    statusText.innerText = `٢. خەریکە دەگۆڕێت: ${Math.round(progressData.progress / 10)}%`;
-                                }
-                            }
-                        } catch (err) {
-                            clearInterval(checkInterval);
-                            throw new Error("کێشە لەکاتی گۆڕیندا ڕوویدا");
-                        }
-                    }, 3000);
-                } else {
-                    throw new Error("سێرڤەر وەڵامی نەدایەوە");
-                }
-            } catch (error) {
-                // پلانی بی: ئەگەر سێرڤەرەکە کێشەی هەبوو، ناهێڵێت پڕۆگرامەکە بوەستێت
-                // ڕاستەوخۆ دەتباتە ماڵپەڕێکی سەد لە سەد پاک کە لینکەکەی تۆی تێدا ئامادەیە
-                statusText.innerText = "سێرڤەری سەرەکی خاوە، ڕاستەوخۆ دەتبەینە پەڕەی داگرتن...";
-                statusText.style.color = "orange";
-                
-                setTimeout(() => {
-                    window.location.href = `https://cobalt.tools/?u=${encodeURIComponent(link)}`;
-                }, 2000);
+            if (server === 'yout') {
+                // سێرڤەری Yout: زۆر خێرایە و ڕاستەوخۆ بەشی دەنگ (MP3) دەکاتەوە
+                window.location.href = `https://yout.com/video/?url=${encodeURIComponent(cleanYoutubeLink)}`;
+            } else if (server === 'y2meta') {
+                // سێرڤەری Y2Meta: وەک یەدەگ ئەگەر ئەوەی یەکەم قەرەباڵغ بوو
+                window.location.href = `https://y2meta.mobi/youtube/${videoId}`;
             }
         }
     </script>
